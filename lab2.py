@@ -1,92 +1,106 @@
 from flask import Flask, request, jsonify
-from flask_restful import Api, Resource
-from datetime import datetime 
-from flask_cors import CORS
-
+from datetime import datetime
 
 app = Flask(__name__)
-CORS(app) 
-api = Api(app)
 
-@app.route("/")
-def welcome():
-    return "Hello There"
+profile_obj = {}
+tank_list = []
 
-profile = {
-    "success": True,
-    "data": {
-        "last_updated": "2/3/2021, 8:48:51 PM", 
-        "username": "coolname",
-        "role": "Engineer",
-        "color": "#3478ff"
+tank_count = 0
+
+# GET /profile
+@app.route("/profile")
+def get_profile():
+    return profile_obj
+
+# POST /profile
+@app.route("/profile", methods=["POST"])
+def post_profile():
+    profile_obj["username"] = request.json["username"]
+    profile_obj["role"] = request.json["role"]
+    profile_obj["color"] = request.json["color"]
+    profile_obj["last_updated"] = datetime.now()
+
+    return{
+      "success": True,
+      "data": profile_obj
     }
-}
 
-tank_info = []
-tank_id = 0
+# PATCH /profile
+@app.route("/profile", methods=["PATCH"])
+def update_profile():
+  if "username" in request.json:
+    profile_obj["username"] = request.json["username"]
+  
+  if "role" in request.json:
+    profile_obj["role"] = request.json["role"]
 
-class Profile(Resource):
-    def get(self):
-        return profile
+  if "color" in request.json:
+    profile_obj["color"] = request.json["color"]
+  
+  profile_obj["last_updated"] = datetime.now()
+  
+  return {
+    "success": True,
+    "data": profile_obj
+  }
 
-    def post(self):
-        profile["data"]["last_updated"] = datetime.now().strftime("%c")
-        profile["data"]["username"] = request.json['username']
-        profile["data"]["role"] = request.json['role']
-        profile["data"]["color"] = request.json['color']
-        return profile
+# GET /data
+@app.route("/data")
+def get_tanks():
+  return jsonify(tank_list)
 
-    def patch(self):
-        profile["data"]["last_updated"] = datetime.now().strftime("%c")
+@app.route("/data", methods=["POST"])
+def add_tank():
+  global tank_count
+  tank_count+=1
+  tank_list.append({
+    "id": tank_count,
+    "location": request.json["location"],
+    "lat": request.json["lat"],
+    "long": request.json["long"],
+    "percentage_full": request.json["percentage_full"]
+  })
+  return {
+    "id": tank_count,
+    "location": request.json["location"],
+    "lat": request.json["lat"],
+    "long": request.json["long"],
+    "percentage_full": request.json["percentage_full"]
+  }
 
-        data = (request.json)
-        for key in data:
-            profile["data"][key] = request.json[key]
-        
-        return profile
+# PATCH /data/:id
+@app.route("/data/<int:id>", methods=["PATCH"])
+def update_tank(id):
+  for tank in tank_list:
+    if id == tank["id"]:
+      if "location" in request.json:
+        tank["location"] = request.json["location"]
+      
+      if "lat" in request.json:
+        tank["lat"] = request.json["lat"]
 
-class Data(Resource):
-    def get(self):
-        return tank_info
+      if "long" in request.json:
+        tank["long"] = request.json["long"]
 
+      if "percentage_full" in request.json:
+        tank["percentage_full"] = request.json["percentage_full"]
 
-    def post(self):
-        global tank_id
-        tank_id += 1
-        tank = {}
+  return tank_list[int(id)-1]
 
-        tank["id"] = tank_id
-        tank["location"] = request.json['location']
-        tank["lat"] = request.json['lat']
-        tank["long"] = request.json['long']
-        tank["percentage_full"] = request.json['percentage_full']
+# DELETE /data/:id
+@app.route("/data/<int:id>", methods=["DELETE"])
+def del_tank(id):
+  for tank in tank_list:
+    if tank["id"] == id:
+      tank_list.remove(tank)
 
-        tank_info.append(tank)
-        return tank_info
-
-
-class Data2(Resource):
-    def patch(self, tank_id):
-        for item in tank_info: 
-            if item["id"] == tank_id:
-                data = (request.json)
-                for key in data:
-                    item[key] = request.json[key]
-
-        return tank_info
-
-    def delete(self, tank_id):
-        for item in tank_info:
-            if item["id"] == tank_id:
-                tank_info.remove(item)
-
-        return {"success": True}
+  return {
+    "success": True
+  }
 
 
-api.add_resource(Profile, "/profile")
-api.add_resource(Data, "/data")
-api.add_resource(Data2, "/data/<int:tank_id>")
 
 if __name__ == "__main__":
     app.run(debug=True)
-    
+
